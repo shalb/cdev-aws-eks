@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: external-dns
+    targetRevision: 4.4.3
+    helm:
+      values: |
+        aws:
+          region: {{ .variables.region }}
+          zoneType: "public"
+        policy: upsert-only
+        serviceAccount:
+          create: true
+          {{- if .variables.eks_version }}
+          annotations:
+            eks.amazonaws.com/role-arn: {{ remoteState "this.iam_assumable_role_route53.this_iam_role_arn" }}
+          {{- end }}
+        metrics:
+          enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - Validate=true
+      - CreateNamespace=true

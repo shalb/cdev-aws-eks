@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-issuers
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.adfinis.com
+    chart: cert-manager-issuers
+    targetRevision: 0.2.0
+    helm:
+      values: |
+        _: &email no-reply@cluster.dev
+        _: &solvers
+        - dns01:
+            route53:
+              region: {{ .variables.region }}
+        clusterIssuers:
+        - name: letsencrypt-prod
+          spec:
+            acme:
+              privateKeySecretRef:
+                name: letsencrypt-prod
+              email: *email
+              server: https://acme-v02.api.letsencrypt.org/directory
+              solvers: *solvers
+        - name: letsencrypt-staging
+          spec:
+            acme:
+              privateKeySecretRef:
+                name: letsencrypt-staging
+              email: *email
+              server: https://acme-staging-v02.api.letsencrypt.org/directory
+              solvers: *solvers
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - Validate=true
