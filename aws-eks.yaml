@@ -1,10 +1,15 @@
-kind: InfraTemplate
-name: aws-eks
 # Define common used anchors
 _: &getKubeconfig "rm -f ../kubeconfig_{{ .name }}; aws eks --region {{ .variables.region }} update-kubeconfig --name {{ .name }} --kubeconfig ../kubeconfig_{{ .name }}"
 _p: &provider_aws
 - aws:
     region: {{ .variables.region }}
+
+{{ $createVpcCIDR := "10.8.0.0/18" -}}
+{{ $azs_count := len .variables.azs -}}
+
+# Define template
+kind: InfraTemplate
+name: aws-eks
 # Define Modules itself
 modules:
   - name: route53
@@ -15,16 +20,45 @@ modules:
       cluster_name: {{ .name }}
       cluster_domain: {{ .variables.domain }}
       zone_delegation: {{ if eq .variables.domain "cluster.dev" }}true{{ else }}false{{ end }}
+
   {{- if not .variables.vpc_id }}
   - name: vpc
     type: terraform
+    providers: *provider_aws
     source: terraform-aws-modules/vpc/aws
     version: "2.70.0"
     inputs:
       name: {{ .name }}
+      cidr: {{ $createVpcCIDR }}
+      public_subnets:
+      {{- range $index, $_ := .variables.azs }}
+       - {{ cidrSubnet $createVpcCIDR 4 $index }}
+      {{- end }}
+      private_subnets:
+      {{- range $index, $_ := .variables.azs }}
+       - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
+      {{- end }}
       azs: {{ insertYAML .variables.azs }}
-      vpc_id: {{ .variables.vpc_id }}
   {{- end }}
+
+  - name: subnets_tagging
+    type: terraform
+    providers: *provider_aws
+    source: ./subnets_tagging/
+    inputs:
+  {{- if not .variables.vpc_id }}
+      public_subnets:
+      {{- range $index, $_ := .variables.azs }}
+       - {{ cidrSubnet $createVpcCIDR 4 $index }}
+      {{- end }}
+      private_subnets:
+      {{- range $index, $_ := .variables.azs }}
+       - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
+      {{- end }}
+  {{- else }}
+      public_subnets: {{ insertYAML .variables.public_subnets }}
+  {{- end}}
+
   - name: eks
     type: terraform
     providers: *provider_aws
@@ -36,6 +70,7 @@ modules:
     post_hook:
       command: cp ./kubeconfig_{{ .name }} ../kubeconfig_{{ .name }}
     source: "terraform-aws-modules/eks/aws"
+    depends_on: this.subnets_tagging
     version: "13.2.1"
     inputs:
       cluster_name: {{ .name }}
@@ -52,22 +87,72 @@ modules:
       vpc_id: {{ .variables.vpc_id }}
       {{- end }}
       worker_groups_launch_template: {{ insertYAML .variables.default_node_pool }}
+
   - name: eks_auth
     type: kubernetes
+    provider_version: "0.2.1"
     pre_hook:
       command: *getKubeconfig
       on_destroy: true
     kubeconfig: ../kubeconfig_{{ .name }}
     depends_on: this.eks
     source: ./eks/
-  - name: cert-manager-crds
-    type: kubernetes
+
+  - name: cert-manager
+    type: helm
+    source:
+      repository: "https://charts.jetstack.io"
+      chart: "cert-manager"
+      version: "v1.2.0"
+    kubeconfig: ../kubeconfig_{{ .name }}
+    depends_on: this.eks_auth
+    additional_options:
+      namespace: "cert-manager"
+      create_namespace: true
     pre_hook:
       command: *getKubeconfig
       on_destroy: true
+      on_plan: true
+    inputs:
+      installCRDs: true
+      webhook.enabled: false
+      ingressShim.defaultIssuerName: letsencrypt-prod
+      ingressShim.defaultIssuerKind: ClusterIssuer
+      ingressShim.defaultACMEChallengeType: dns01
+      securityContext.enabled: false
+      serviceAccount.create: true
+      serviceAccount.annotations.eks\.amazonaws\.com/role-arn: {{ remoteState "this.iam_assumable_role_route53.this_iam_role_arn" }}
+
+  - name: cert-manager-issuer
+    type: kubernetes
+    source: ./cert-manager/
+    provider_version: "0.2.1"
     kubeconfig: ../kubeconfig_{{ .name }}
-    depends_on: this.eks
-    source: ./cert-manager/cert-manager.crds.yaml
+    depends_on: this.cert-manager
+    pre_hook:
+      command: *getKubeconfig
+      on_destroy: true
+      on_plan: true
+
+  - name: ingress-nginx
+    type: helm
+    source:
+      repository: "https://kubernetes.github.io/ingress-nginx"
+      chart: "ingress-nginx"
+      version: "3.21.0"
+    kubeconfig: ../kubeconfig_{{ .name }}
+    depends_on: this.eks_auth
+    additional_options:
+      namespace: "cert-manager"
+      create_namespace: true
+    pre_hook:
+      command: *getKubeconfig
+      on_destroy: true
+      on_plan: true
+    inputs:
+        service.type: LoadBalancer
+        controller.admissionWebhooks.enabled: false
+
   - name: argocd
     type: helm
     source:
@@ -78,7 +163,7 @@ modules:
       command: *getKubeconfig
       on_destroy: true
     kubeconfig: ../kubeconfig_{{ .name }}
-    depends_on: this.cert-manager-crds
+    depends_on: this.cert-manager
     additional_options:
       namespace: "argocd"
       create_namespace: true
@@ -97,6 +182,7 @@ modules:
       server.ingress.tls[0].secretName: argocd-secret
       server.config.url: https://argocd.{{ .name }}.{{ .variables.domain }}
       configs.secret.argocdServerAdminPassword: {{ .variables.argocdServerAdminPassword }}
+  
   - name: argocd_apps
     type: kubernetes
     provider_version: "0.2.1"
@@ -106,6 +192,7 @@ modules:
       on_destroy: true
     kubeconfig: ../kubeconfig_{{ .name }}
     depends_on: this.argocd
+  
   - name: iam_assumable_role_route53
     type: terraform
     source: "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
@@ -120,6 +207,7 @@ modules:
         - "system:serviceaccount:external-dns:external-dns"
         - "system:serviceaccount:cert-manager:cert-manager"
       provider_url: {{ remoteState "this.eks.cluster_oidc_issuer_url" | replace "https://" ""}}
+  
   - name: iam_policy_route53
     type: terraform
     source: "terraform-aws-modules/iam/aws//modules/iam-policy"
@@ -155,6 +243,7 @@ modules:
             }
           ]
         }
+
   - name: print_outputs
     type: printer
     depends_on: this.argocd_apps
