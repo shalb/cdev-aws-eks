@@ -45,6 +45,7 @@ modules:
     type: terraform
     providers: *provider_aws
     source: ./subnets_tagging/
+    depends_on: this.vpc
     inputs:
   {{- if not .variables.vpc_id }}
       public_subnets:
@@ -143,7 +144,7 @@ modules:
     kubeconfig: ../kubeconfig_{{ .name }}
     depends_on: this.eks_auth
     additional_options:
-      namespace: "cert-manager"
+      namespace: "ingress-nginx"
       create_namespace: true
     pre_hook:
       command: *getKubeconfig
