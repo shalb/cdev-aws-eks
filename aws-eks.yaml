@@ -32,11 +32,11 @@ modules:
       cidr: {{ $createVpcCIDR }}
       public_subnets:
       {{- range $index, $_ := .variables.azs }}
-       - {{ cidrSubnet $createVpcCIDR 4 $index }}
+        - {{ cidrSubnet $createVpcCIDR 4 $index }}
       {{- end }}
       private_subnets:
       {{- range $index, $_ := .variables.azs }}
-       - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
+        - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
       {{- end }}
       azs: {{ insertYAML .variables.azs }}
   {{- end }}
@@ -49,11 +49,11 @@ modules:
   {{- if not .variables.vpc_id }}
       public_subnets:
       {{- range $index, $_ := .variables.azs }}
-       - {{ cidrSubnet $createVpcCIDR 4 $index }}
+        - {{ cidrSubnet $createVpcCIDR 4 $index }}
       {{- end }}
       private_subnets:
       {{- range $index, $_ := .variables.azs }}
-       - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
+        - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
       {{- end }}
   {{- else }}
       public_subnets: {{ insertYAML .variables.public_subnets }}
@@ -182,7 +182,7 @@ modules:
       server.ingress.tls[0].secretName: argocd-secret
       server.config.url: https://argocd.{{ .name }}.{{ .variables.domain }}
       configs.secret.argocdServerAdminPassword: {{ .variables.argocdServerAdminPassword }}
-  
+
   - name: argocd_apps
     type: kubernetes
     provider_version: "0.2.1"
@@ -192,7 +192,7 @@ modules:
       on_destroy: true
     kubeconfig: ../kubeconfig_{{ .name }}
     depends_on: this.argocd
-  
+
   - name: iam_assumable_role_route53
     type: terraform
     source: "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
@@ -207,7 +207,7 @@ modules:
         - "system:serviceaccount:external-dns:external-dns"
         - "system:serviceaccount:cert-manager:cert-manager"
       provider_url: {{ remoteState "this.eks.cluster_oidc_issuer_url" | replace "https://" ""}}
-  
+
   - name: iam_policy_route53
     type: terraform
     source: "terraform-aws-modules/iam/aws//modules/iam-policy"
