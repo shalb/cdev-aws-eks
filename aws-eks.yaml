@@ -5,8 +5,8 @@ _p: &provider_aws
     region: {{ .variables.region }}
 
 {{ $createVpcCIDR := "10.8.0.0/18" -}}
-{{ $azs_count := len .variables.azs -}}
-
+{{- $azs_count := len .variables.azs -}}
+{{- $skip_subnet_tagging := .variables.skip_subnets_tagging }}
 # Define template
 kind: InfraTemplate
 name: aws-eks
@@ -22,6 +22,7 @@ modules:
       zone_delegation: {{ if eq .variables.domain "cluster.dev" }}true{{ else }}false{{ end }}
 
   {{- if not .variables.vpc_id }}
+  {{- $skip_subnet_tagging = false }}
   - name: vpc
     type: terraform
     providers: *provider_aws
@@ -41,17 +42,19 @@ modules:
       azs: {{ insertYAML .variables.azs }}
   {{- end }}
 
+  {{- if not $skip_subnet_tagging }}
   - name: subnets_tagging
     type: terraform
     providers: *provider_aws
     source: ./subnets_tagging/
     inputs:
   {{- if not .variables.vpc_id }}
-      public_subnets: {{ remoteState "this.vpc.private_subnets" }}
+      public_subnets: {{ remoteState "this.vpc.public_subnets" }}
       private_subnets: {{ remoteState "this.vpc.private_subnets" }}
   {{- else }}
       public_subnets: {{ insertYAML .variables.public_subnets }}
-  {{- end}}
+  {{- end }}
+  {{- end }}  
 
   - name: eks
     type: terraform
@@ -63,8 +66,10 @@ modules:
       on_plan: false
     post_hook:
       command: cp ./kubeconfig_{{ .name }} ../kubeconfig_{{ .name }}
+  {{- if not $skip_subnet_tagging }}
+    depends_on: this.subnets_tagging 
+  {{- end }}
     source: "terraform-aws-modules/eks/aws"
-    depends_on: this.subnets_tagging
     version: "13.2.1"
     inputs:
       cluster_name: {{ .name }}
