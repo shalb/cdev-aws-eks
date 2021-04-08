@@ -45,17 +45,10 @@ modules:
     type: terraform
     providers: *provider_aws
     source: ./subnets_tagging/
-    depends_on: this.vpc
     inputs:
   {{- if not .variables.vpc_id }}
-      public_subnets:
-      {{- range $index, $_ := .variables.azs }}
-        - {{ cidrSubnet $createVpcCIDR 4 $index }}
-      {{- end }}
-      private_subnets:
-      {{- range $index, $_ := .variables.azs }}
-        - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
-      {{- end }}
+      public_subnets: {{ remoteState "this.vpc.private_subnets" }}
+      private_subnets: {{ remoteState "this.vpc.private_subnets" }}
   {{- else }}
       public_subnets: {{ insertYAML .variables.public_subnets }}
   {{- end}}
