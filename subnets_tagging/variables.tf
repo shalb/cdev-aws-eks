@@ -9,3 +9,8 @@ variable "public_subnets" {
   type = list
   description = "list of public subnets IDs for tagging for ingress NLB"
 }
+
+variable "cluster_name" {
+  type = string
+  description = "k8s cluster name for tagging"
+}
