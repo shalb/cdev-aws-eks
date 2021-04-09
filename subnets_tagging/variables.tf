@@ -14,3 +14,8 @@ variable "cluster_name" {
   type = string
   description = "k8s cluster name for tagging"
 }
+
+variable "shared_vpc" {
+  type = string
+  description = "set to true if there are more then one k8s cluster in vpc"
+}

@@ -1,3 +1,7 @@
+locals {
+  cluster_tag = var.shared_vpc ? "shared" : "owned"
+}
+
 data "aws_subnet" "public_subnet" {
   count = length(var.public_subnets)
   id    = var.public_subnets[count.index]
@@ -7,7 +11,7 @@ resource "aws_ec2_tag" "public_subnet_tag_cluster" {
   count       = length(var.public_subnets)
   resource_id = data.aws_subnet.public_subnet[count.index].id
   key         = "kubernetes.io/cluster/${var.cluster_name}"
-  value       = "owned"
+  value       = local.cluster_tag
 }
 
 resource "aws_ec2_tag" "public_subnet_tag_elb" {
@@ -26,7 +30,7 @@ resource "aws_ec2_tag" "private_subnet_tag_cluster" {
   count       = length(var.private_subnets)
   resource_id = data.aws_subnet.private_subnet[count.index].id
   key         = "kubernetes.io/cluster/${var.cluster_name}"
-  value       = "owned"
+  value       = local.cluster_tag
 }
 
 resource "aws_ec2_tag" "private_subnet_tag_elb" {
