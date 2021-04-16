@@ -48,6 +48,7 @@ modules:
     providers: *provider_aws
     source: ./subnets_tagging/
     inputs:
+      cluster_name: {{ .name }}
   {{- if not .variables.vpc_id }}
       public_subnets: {{ remoteState "this.vpc.public_subnets" }}
       private_subnets: {{ remoteState "this.vpc.private_subnets" }}
