@@ -54,7 +54,7 @@ modules:
   {{- else }}
       public_subnets: {{ insertYAML .variables.public_subnets }}
   {{- end }}
-  {{- end }}  
+  {{- end }}
 
   - name: eks
     type: terraform
