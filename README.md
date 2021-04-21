@@ -6,7 +6,6 @@ In this repository you will find all information and samples necessary to start 
 
 The resources to be created:
 
-* AWS Key Pair to access running instances of the cluster.
 * *(optional, if your use cluster.dev domain)* Route53 zone **<cluster-name>.cluster.dev** 
 * *(optional, if vpc_id is not set)* VPC for EKS cluster
 * EKS Kubernetes cluster with addons:
@@ -14,6 +13,7 @@ The resources to be created:
   * ingress-nginx
   * external-dns
   * argocd
+* AWS IAM roles for EKS IRSA cert-manager and external-dns
 
 ## Prerequisites
 
