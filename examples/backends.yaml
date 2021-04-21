@@ -1,5 +1,5 @@
 name: aws-backend
-kind: backend
+kind: Backend
 provider: s3
 spec:
   bucket: {{ .project.variables.state_bucket_name }}

@@ -1,6 +1,6 @@
 name: eks
 template: "../"
-kind: infrastructure
+kind: Infrastructure
 backend: aws-backend
 variables:
   region: {{ .project.variables.region }}
