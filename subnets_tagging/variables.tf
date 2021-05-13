@@ -18,4 +18,5 @@ variable "cluster_name" {
 variable "shared_vpc" {
   type = string
   description = "set to true if there are more then one k8s cluster in vpc"
+  default = false
 }

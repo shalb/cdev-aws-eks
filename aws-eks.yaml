@@ -249,4 +249,7 @@ modules:
     depends_on: this.argocd_apps
     inputs:
       cluster_name: {{ .name }}
-      kubeconfig: rm -f kubeconfig_{{ .name }}; aws eks --region {{ .variables.region }} update-kubeconfig --name {{ .name }} --kubeconfig kubeconfig_{{ .name }} && export KUBECONFIG=kubeconfig_{{ .name }}
+      region: {{ .variables.region }}
+      kubeconfig: *getKubeconfig
+      k3s_version: {{ .variables.eks_version }}
+      argocd_url: https://argocd.{{ .name }}.{{ .variables.domain }}
