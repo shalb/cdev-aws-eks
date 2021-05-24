@@ -71,7 +71,7 @@ modules:
     depends_on: this.subnets_tagging 
   {{- end }}
     source: "terraform-aws-modules/eks/aws"
-    version: "13.2.1"
+    version: "16.0.0"
     inputs:
       cluster_name: {{ .name }}
       enable_irsa: true
