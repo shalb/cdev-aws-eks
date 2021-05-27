@@ -127,7 +127,7 @@ modules:
     type: kubernetes
     source: ./cert-manager/
     provider_version: "0.2.1"
-    kubeconfig: ../kubeconfig_{{ .name }}
+    config_path: ../kubeconfig_{{ .name }}
     depends_on: this.cert-manager
     pre_hook:
       command: *getKubeconfig
@@ -191,7 +191,7 @@ modules:
     pre_hook:
       command: *getKubeconfig
       on_destroy: true
-    kubeconfig: ../kubeconfig_{{ .name }}
+    config_path: ../kubeconfig_{{ .name }}
     depends_on: this.argocd
 
   - name: iam_assumable_role_route53
