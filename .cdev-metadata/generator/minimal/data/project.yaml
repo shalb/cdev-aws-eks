@@ -1,5 +1,6 @@
 name: /{ .name }/
 kind: Project
+backend: /{ .bucket_name }/
 variables:
   organization: /{ .organization }/
   region: /{ .region }/
