@@ -78,7 +78,7 @@ modules:
       manage_aws_auth: false
       cluster_endpoint_private_access: true
       cluster_endpoint_public_access: true
-      cluster_version: {{ .variables.eks_version }}
+      cluster_version: {{ insertYAML .variables.eks_version }}
       {{- if not .variables.vpc_id }}
       subnets: {{ remoteState "this.vpc.public_subnets" }}
       vpc_id: {{ remoteState "this.vpc.vpc_id" }}
