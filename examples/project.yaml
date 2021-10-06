@@ -4,6 +4,6 @@ variables:
   organization: shalb # sample global variable
   region: eu-central-1
   state_bucket_name: cluster-dev-front # create and set your s3 bucket here
-exports:
-  AWS_PROFILE: cluster-dev-front
+#exports:
+#  AWS_PROFILE: cluster-dev-front
 #  CDEV_TF_BINARY: /usr/local/bin/terraform-0.14.9 # optional set of TF version

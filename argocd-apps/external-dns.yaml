@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: external-dns
-    targetRevision: 4.4.3
+    targetRevision: 5.4.9
     helm:
       values: |
         aws:
