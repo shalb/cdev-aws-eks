@@ -27,7 +27,7 @@ modules:
     type: terraform
     providers: *provider_aws
     source: terraform-aws-modules/vpc/aws
-    version: "2.70.0"
+    version: "3.7.0"
     inputs:
       name: {{ .name }}
       cidr: {{ $createVpcCIDR }}
@@ -71,7 +71,7 @@ modules:
     depends_on: this.subnets_tagging 
   {{- end }}
     source: "terraform-aws-modules/eks/aws"
-    version: "16.0.0"
+    version: "17.20.0"
     inputs:
       cluster_name: {{ .name }}
       enable_irsa: true
@@ -90,7 +90,7 @@ modules:
 
   - name: eks_auth
     type: kubernetes
-    provider_version: "0.2.1"
+    provider_version: "0.6.0"
     pre_hook:
       command: *getKubeconfig
       on_destroy: true
@@ -103,7 +103,7 @@ modules:
     source:
       repository: "https://charts.jetstack.io"
       chart: "cert-manager"
-      version: "v1.2.0"
+      version: "v1.5.4"
     kubeconfig: ../kubeconfig_{{ .name }}
     depends_on: this.eks_auth
     additional_options:
@@ -126,7 +126,7 @@ modules:
   - name: cert-manager-issuer
     type: kubernetes
     source: ./cert-manager/
-    provider_version: "0.2.1"
+    provider_version: "0.6.0"
     config_path: ../kubeconfig_{{ .name }}
     depends_on: this.cert-manager
     pre_hook:
@@ -139,7 +139,7 @@ modules:
     source:
       repository: "https://kubernetes.github.io/ingress-nginx"
       chart: "ingress-nginx"
-      version: "3.21.0"
+      version: "4.0.5"
     kubeconfig: ../kubeconfig_{{ .name }}
     depends_on: this.eks_auth
     additional_options:
@@ -158,7 +158,7 @@ modules:
     source:
       repository: "https://argoproj.github.io/argo-helm"
       chart: "argo-cd"
-      version: "2.17.5"
+      version: "3.23.0"
     pre_hook:
       command: *getKubeconfig
       on_destroy: true
@@ -168,7 +168,7 @@ modules:
       namespace: "argocd"
       create_namespace: true
     inputs:
-      global.image.tag: v1.8.4
+      global.image.tag: v2.1.2
       service.type: LoadBalancer
       server.certificate.enabled: true
       server.certificate.domain: argocd.{{ .name }}.{{ .variables.domain }}
@@ -186,7 +186,7 @@ modules:
 
   - name: argocd_apps
     type: kubernetes
-    provider_version: "0.2.1"
+    provider_version: "0.6.0"
     source: ./argocd-apps/
     pre_hook:
       command: *getKubeconfig

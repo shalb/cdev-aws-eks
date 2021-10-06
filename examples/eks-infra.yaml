@@ -1,4 +1,4 @@
-name: eks
+name: example
 template: "../"
 kind: Infrastructure
 backend: aws-backend
