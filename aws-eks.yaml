@@ -8,10 +8,10 @@ _p: &provider_aws
 {{- $azs_count := len .variables.azs -}}
 {{- $skip_subnet_tagging := .variables.skip_subnets_tagging }}
 # Define template
-kind: InfraTemplate
+kind: StackTemplate
 name: aws-eks
-# Define Modules itself
-modules:
+# Define units itself
+units:
   - name: route53
     type: terraform
     source: github.com/shalb/cluster.dev-domain?ref=v0.1.0

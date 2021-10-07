@@ -1,6 +1,6 @@
 name: example
 template: "../"
-kind: Infrastructure
+kind: Stack
 backend: aws-backend
 variables:
   region: {{ .project.variables.region }}
