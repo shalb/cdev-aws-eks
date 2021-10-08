@@ -5,4 +5,3 @@ variables:
   organization: /{ .organization }/
   region: /{ .region }/
   state_bucket_name: /{ .bucket_name }/
-  
