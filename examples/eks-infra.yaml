@@ -32,3 +32,4 @@ variables:
       on_demand_base_capacity: 0
       on_demand_percentage_above_base_capacity: 0
   argocdServerAdminPassword: {{ .secret.k3_infra.argocd_password }}
+  clusterAutoscalerEnabled: true

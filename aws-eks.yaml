@@ -245,6 +245,48 @@ units:
           ]
         }
 
+  {{- if .variables.clusterAutoscalerEnabled }}
+  - name: iam_assumable_role_autoscaling_autoscaler
+    type: terraform
+    source: "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+    version: "~> 3.0"
+    providers: *provider_aws
+    inputs:
+      role_name: "eks-autoscaling-autoscaler-{{ .name }}"
+      create_role: true
+      role_policy_arns:
+        - {{ remoteState "this.iam_policy_autoscaling_autoscaler.arn" }}
+      oidc_fully_qualified_subjects:
+        - "system:serviceaccount:kube-system:cluster-autoscaler-aws-cluster-autoscaler"
+      provider_url: {{ remoteState "this.eks.cluster_oidc_issuer_url" | replace "https://" ""}}
+
+  - name: iam_policy_autoscaling_autoscaler
+    type: terraform
+    source: "terraform-aws-modules/iam/aws//modules/iam-policy"
+    version: "~> 3.0"
+    providers: *provider_aws
+    inputs:
+      name: AllowAutoScalingAccessforClusterAutoScaler-{{ .name }}
+      policy: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeAutoScalingInstances",
+                "autoscaling:DescribeLaunchConfigurations",
+                "autoscaling:DescribeTags",
+                "autoscaling:SetDesiredCapacity",
+                "autoscaling:TerminateInstanceInAutoScalingGroup"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+  {{- end }}
+
   - name: print_outputs
     type: printer
     depends_on: this.argocd_apps
