@@ -66,7 +66,9 @@ units:
       on_apply: false
       on_plan: false
     post_hook:
-      command: cp ./kubeconfig_{{ .name }} ../kubeconfig_{{ .name }}
+      command: |
+        cp ./kubeconfig_{{ .name }} ../kubeconfig_{{ .name }}
+        until curl -k $(cat ../kubeconfig_{{ .name }} | sed -n 's/server://p'); do sleep 3 && echo "Waiting until the cluster becomes reachable"; done
   {{- if not $skip_subnet_tagging }}
     depends_on: this.subnets_tagging 
   {{- end }}
@@ -294,5 +296,5 @@ units:
       cluster_name: {{ .name }}
       region: {{ .variables.region }}
       kubeconfig: *getKubeconfig
-      k3s_version: {{ .variables.eks_version }}
+      eks_version: {{ .variables.eks_version }}
       argocd_url: https://argocd.{{ .name }}.{{ .variables.domain }}
