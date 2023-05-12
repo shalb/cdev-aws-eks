@@ -1,0 +1,36 @@
+name: Smoke test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+jobs:
+  run:
+    name: Cluster smoke test
+    container: clusterdev/cluster.dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v2
+
+      - name: Provision a stack
+        run: cd examples && cdev apply --force -l debug 
+
+      - name: Check ArgoCD endpoint
+        run:  curl $(awk -F= '/https/ {print $2}')
+
+      - name: Save stack files when apply fails
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          path: examples/
+
+      - name: Destroy stack
+        if: always()
+        run: cdev destroy --force -l debug 

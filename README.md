@@ -1,8 +1,8 @@
-# cdev-aws-eks
+# AWS-EKS
 
-Cdev uses [project templates](https://docs.cluster.dev/stack-template-development/) to generate users' projects in a desired cloud. AWS-EKS is a cdev template that creates and provisions Kubernetes clusters in [AWS cloud](https://docs.cluster.dev/aws-cloud-provider/) by means of Amazon Elastic Kubernetes Service (EKS). 
+Cluster.dev uses [stack templates](https://docs.cluster.dev/stack-templates-overview/) to generate users' projects in a desired cloud. AWS-EKS is a stack template that creates and provisions Kubernetes clusters in AWS cloud by means of Amazon Elastic Kubernetes Service (EKS). 
 
-In this repository you will find all information and samples necessary to start an EKS cluster in AWS with cdev. 
+In this repository you will find all information and samples necessary to start an EKS cluster on AWS with Cluster.dev. 
 
 The resources to be created:
 
@@ -21,11 +21,11 @@ The resources to be created:
 2. AWS account.
 3. AWS CLI installed.
 4. kubectl installed.
-5. [Cdev installed](https://docs.cluster.dev/getting-started/#cdev-install).
+5. [Cluster.dev client installed](https://docs.cluster.dev/get-started-install/).
 
 ## Quick Start
 
-1. [Configure access to AWS](https://docs.cluster.dev/aws-cloud-provider/) and export required variables. 
+1. [Configure access to AWS](https://docs.cluster.dev/examples-aws-eks/#authentication) and export required variables. 
 2. Clone example project:
     ```
     git clone https://github.com/shalb/cdev-aws-eks.git
