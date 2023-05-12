@@ -1,0 +1,199 @@
+# Define common go-template variables for templating
+{{- $createVpcCIDR := "10.8.0.0/18" -}}
+{{- $region := .variables.region -}}
+{{- $azs := list "" -}}
+{{- if .variables.azs -}}
+{{- $azs = .variables.azs -}}
+{{- else -}}
+{{- $azs = list (printf "%sa" $region) (printf "%sb" $region) (printf "%sc" $region) -}}
+{{- end -}}
+{{- $azs_count := len $azs -}}
+# Define common used anchors
+_p: &provider_aws
+- aws:
+    region: {{ .variables.region }}
+
+# Define template
+kind: StackTemplate
+name: aws-eks
+# Define units itself
+units:
+  - name: route53
+    type: tfmodule
+    source: github.com/shalb/cluster.dev-domain?ref=v0.1.0
+    inputs:
+      region: {{ .variables.region }}
+      cluster_name: {{ .name }}
+      cluster_domain: {{ .variables.domain }}
+      zone_delegation: {{ if eq .variables.domain "cluster.dev" }}true{{ else }}false{{ end }}
+
+  {{- if not .variables.vpc_id }}
+  -
+    name: vpc
+    type: tfmodule
+    providers: *provider_aws
+    source: terraform-aws-modules/vpc/aws
+    version: "3.19.0"
+    inputs:
+      name: {{ .variables.cluster_name }}
+      cidr: {{ $createVpcCIDR }}
+      enable_nat_gateway: true
+      single_nat_gateway: true
+      one_nat_gateway_per_az: false
+      enable_dns_hostnames: true
+      enable_dns_support: true
+      create_egress_only_igw: true
+      enable_vpn_gateway: true
+      create_database_subnet_group: true
+      public_subnets:
+      {{- range $index, $_ := $azs }}
+        - {{ cidrSubnet $createVpcCIDR 4 $index }}
+      {{- end }}
+      private_subnets:
+      {{- range $index, $_ := $azs }}
+        - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count ) }}
+      {{- end }}
+      database_subnets:
+      {{- range $index, $_ := $azs }}
+        - {{ cidrSubnet $createVpcCIDR 4 (add $index $azs_count $azs_count ) }}
+      {{- end }}
+      public_subnet_tags:
+        "kubernetes.io/cluster/{{ .variables.cluster_name }}": "owned"
+        "kubernetes.io/role/lb": 1
+      private_subnet_tags:
+        "kubernetes.io/cluster/{{ .variables.cluster_name }}": "owned"
+        "kubernetes.io/role/internal-lb": 1
+      azs: {{ insertYAML $azs }}
+  {{- end }}
+
+  - name: eks
+    type: tfmodule
+    providers:
+    - aws:
+        region: {{ .variables.region }}
+    create_files:
+    - file: ./kubernetes_provider.tf
+      mode: 0644
+      content: |
+{{ readFile "./files/kube_provider.tf" | indent 8 }}
+    source: "terraform-aws-modules/eks/aws"
+    version: "19.6.0"
+    inputs:
+      cluster_name: {{ .variables.cluster_name }}
+      cluster_version: {{ .variables.eks_version | quote }}
+      cluster_endpoint_private_access: true
+      cluster_endpoint_public_access: true
+      enable_irsa: true
+      tags: {{ insertYAML .variables.tags }}
+      create_aws_auth_configmap: false
+      manage_aws_auth_configmap: true
+      cluster_addons:
+        coredns:
+          most_recent: true
+        kube-proxy:
+          most_recent: true
+        vpc-cni:
+          most_recent: true
+        aws-ebs-csi-driver:
+          most_recent: true
+      vpc_id: {{ remoteState "this.vpc.vpc_id" }}
+      subnet_ids: {{ remoteState "this.vpc.private_subnets" }}
+      {{- if .variables.eks_managed_node_groups }}
+      eks_managed_node_groups: {{ insertYAML .variables.eks_managed_node_groups }} # https://github.com/terraform-aws-modules/terraform-aws-eks#eks-managed-node-groups
+      {{- end }}
+      {{- if .variables.self_managed_node_groups }}
+      self_managed_node_groups: {{ insertYAML .variables.self_managed_node_groups }} # https://github.com/terraform-aws-modules/terraform-aws-eks#self-managed-node-groups
+      {{- end }}
+      {{- if .variables.aws_auth_roles }}
+      aws_auth_roles: {{ .variables.aws_auth_roles }}
+      {{- end }}
+      {{- if .variables.aws_auth_users }}
+      aws_auth_users: {{ .variables.aws_auth_users }}
+      {{- end }}
+      {{- if .variables.aws_auth_accounts }}
+      aws_auth_accounts: {{ .variables.aws_auth_accounts }}
+      {{- end }}
+
+  -
+    name: eks-kubeconfig-raw
+    type: printer
+    outputs:
+      config: |
+        apiVersion: v1
+        clusters:
+        - cluster:
+            certificate-authority-data: {{ remoteState "this.eks.cluster_certificate_authority_data" }}
+            server: {{ remoteState "this.eks.cluster_endpoint" }}
+          name: {{ remoteState "this.eks.cluster_name" }}
+        contexts:
+        - context:
+            cluster: {{ remoteState "this.eks.cluster_name" }}
+            user: terraform
+          name: terraform
+        current-context: terraform
+        kind: Config
+        users:
+        - name: terraform
+          user:
+            exec:
+              apiVersion: client.authentication.k8s.io/v1beta1
+              args:
+              - eks
+              - get-token
+              - --cluster-name
+              - {{ remoteState "this.eks.cluster_name" }}
+              command: aws
+              env: null
+  -
+    name: kubeconfig
+    type: shell
+    # force_apply: true
+    apply:
+      commands:
+        - cd ../../../
+        - echo '{{ output "this.eks-kubeconfig-raw.config" }}' > /$(pwd)/kubeconfig
+        - echo '{{ output "this.eks-kubeconfig-raw.config" }}' | base64 -w 0
+        - echo
+        - echo "kubeconfig_path=$(pwd)/kubeconfig"
+    destroy:
+      commands:
+        -  cd ../../../
+        - rm /$(pwd)/kubeconfig
+    outputs:
+      type: separator
+      separator: "="
+  -
+    name: eks-addons
+    type: tfmodule
+    providers:
+      - aws:
+          region: {{ .variables.region }}
+    source: "github.com/shalb/terraform-eks-addons"
+    depends_on: this.eks
+    inputs:
+      cluster_name: {{ .variables.cluster_name }}
+      cluster_oidc_issuer_url: {{ remoteState "this.eks.cluster_oidc_issuer_url" }}
+      cluster_oidc_provider_arn: {{ remoteState "this.eks.oidc_provider_arn" }}
+      cluster_subnets: {{ remoteState "this.vpc.private_subnets" }}
+      route53_domain: {{ .variables.domain }}
+      region: {{ .variables.region }}
+      email: {{ .variables.email }}
+      enable_nginx: true
+      enable_external_secrets: true
+      enable_cluster_autoscaler: true
+      enable_aws_lb_controller: true
+      enable_external_dns: true
+      enable_cert_manager: true
+      enable_efs: false
+      enable_cert_manager_http_issuers: true
+      cert_manager_version: "1.11.1"
+      route53_zone_id: {{ remoteState "this.route53.zone_id" }}
+
+  - name: outputs
+    type: printer
+    depends_on: this.eks-addons
+    outputs:
+      cluster_name: {{ .variables.cluster_name }}
+      region: {{ .variables.region }}
+      kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
+      eks_version: {{ .variables.eks_version | quote }}

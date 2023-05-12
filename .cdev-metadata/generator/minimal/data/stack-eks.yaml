@@ -1,0 +1,44 @@
+# Init template variables, don't remove this comments:
+# {{ $privateSubnet0 := remoteState "eks.vpc.public_subnets[0]" }}
+name: cluster
+template: "../"
+kind: Stack
+backend: aws-backend
+cliVersion: ">= 0.7.14"
+variables:
+  region: {{ .project.variables.region }}
+  organization: {{ .project.variables.organization }}
+  cluster_name: demo-eks
+  domain: cluster.dev
+  eks_version: "1.26"
+  environment: "demo-env"
+  eks_managed_node_groups:
+    workers:
+      capacity_type: SPOT
+      desired_size: 1
+      disk_size: 80
+      force_update_version: true
+      instance_types:
+        - "t3.xlarge"
+        - "t3a.xlarge"
+        - "m5.xlarge"
+        - "m5n.xlarge"
+        - "t3.medium"
+        - "t3.large"
+        - "m6i.large"
+        - "m5.large"
+        - "m5n.large"
+        - "t3a.medium"
+        - "t3a.large"
+        - "m6a.large"
+        - "m5a.large"
+      labels: {}
+      max_size: 3
+      min_size: 1
+      name: spot-workers
+      subnet_ids: {{ remoteState "cluster.vpc.private_subnets" }}
+      taints: []
+      update_config:
+        max_unavailable: 1
+      iam_role_additional_policies:
+        ebspolicy: "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
