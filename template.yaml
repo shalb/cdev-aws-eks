@@ -16,6 +16,7 @@ _p: &provider_aws
 # Define template
 kind: StackTemplate
 name: aws-eks
+cliVersion: ">= 0.7.15"
 # Define units itself
 units:
   - name: route53
