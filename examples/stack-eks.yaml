@@ -8,14 +8,14 @@ cliVersion: ">= 0.7.14"
 variables:
   region: {{ .project.variables.region }}
   organization: {{ .project.variables.organization }}
-  cluster_name: demo-eks
+  cluster_name: arti-demo
   domain: cluster.dev
   eks_version: "1.26"
   environment: "demo-env"
   eks_managed_node_groups:
     workers:
       capacity_type: SPOT
-      desired_size: 1
+      desired_size: 2
       disk_size: 80
       force_update_version: true
       instance_types:

@@ -23,7 +23,7 @@ units:
     source: github.com/shalb/cluster.dev-domain?ref=v0.1.0
     inputs:
       region: {{ .variables.region }}
-      cluster_name: {{ .name }}
+      cluster_name: {{  .variables.cluster_name }}
       cluster_domain: {{ .variables.domain }}
       zone_delegation: {{ if eq .variables.domain "cluster.dev" }}true{{ else }}false{{ end }}
 
@@ -35,7 +35,7 @@ units:
     source: terraform-aws-modules/vpc/aws
     version: "3.19.0"
     inputs:
-      name: {{ .variables.cluster_name }}
+      name: {{ .variables.environment }}
       cidr: {{ $createVpcCIDR }}
       enable_nat_gateway: true
       single_nat_gateway: true
@@ -174,8 +174,8 @@ units:
       cluster_name: {{ .variables.cluster_name }}
       cluster_oidc_issuer_url: {{ remoteState "this.eks.cluster_oidc_issuer_url" }}
       cluster_oidc_provider_arn: {{ remoteState "this.eks.oidc_provider_arn" }}
-      cluster_subnets: {{ remoteState "this.vpc.private_subnets" }}
-      route53_domain: {{ .variables.domain }}
+      cluster_subnets: {{ remoteState "this.vpc.public_subnets" }}
+      route53_domain: {{ remoteState "this.route53.domain" }}
       region: {{ .variables.region }}
       email: {{ .variables.email }}
       enable_nginx: true
@@ -188,6 +188,34 @@ units:
       enable_cert_manager_http_issuers: true
       cert_manager_version: "1.11.1"
       route53_zone_id: {{ remoteState "this.route53.zone_id" }}
+  -
+    name: mysql-wordpress
+    type: helm
+    depends_on: this.eks-addons
+    kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
+    source:
+      repository: "oci://registry-1.docker.io/bitnamicharts"
+      chart: "mysql"
+      version: "9.9.1"
+    additional_options:
+      namespace: "wordpress"
+      create_namespace: true
+    values:
+      - file: ./files/mysql.yaml
+  -
+    name: wordpress
+    type: helm
+    depends_on: this.eks-addons
+    kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
+    source:
+      repository: "oci://registry-1.docker.io/bitnamicharts"
+      chart: "wordpress"
+      version: "16.1.2"
+    additional_options:
+      namespace: "wordpress"
+      create_namespace: true
+    values:
+      - file: ./files/wordpress.yaml
 
   - name: outputs
     type: printer

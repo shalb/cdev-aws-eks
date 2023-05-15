@@ -1,0 +1,31 @@
+containerSecurityContext:
+  enabled: false
+mariadb:
+  enabled: false
+
+externalDatabase:
+  host: mysql-wordpress-headless
+  ## @param externalDatabase.port External Database server port
+  ##
+  port: 3306
+  ## @param externalDatabase.user External Database username
+  ##
+  user: dev
+  ## @param externalDatabase.password External Database user password
+  ##
+  password: "SimplePassDev"
+  ## @param externalDatabase.database External Database database name
+  ##
+  database: my_database
+
+wordpressPassword: S39BKWjSkh
+
+ingress:
+  enabled: true
+  ingressClassName: "nginx"
+  pathType: Prefix
+  hostname: wordpress.{{ remoteState "this.route53.domain" }}
+  path: /
+  tls: true
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"

@@ -1,0 +1,6 @@
+fullNameOverride: mysql-wordpress
+
+auth:
+  rootPassword: "SimplePass"
+  username: dev
+  password: "SimplePassDev"
