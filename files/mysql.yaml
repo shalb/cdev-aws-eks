@@ -1,6 +1,6 @@
 fullNameOverride: mysql-wordpress
 
 auth:
-  rootPassword: "SimplePass"
-  username: dev
-  password: "SimplePassDev"
+  rootPassword: {{ remoteState "this.mysql-wp-pass-root.result" }}
+  username: user
+  password: {{ remoteState "this.mysql-wp-pass-user.result" }}

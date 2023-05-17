@@ -10,16 +10,17 @@ externalDatabase:
   port: 3306
   ## @param externalDatabase.user External Database username
   ##
-  user: dev
+  user: user
   ## @param externalDatabase.password External Database user password
   ##
-  password: "SimplePassDev"
+  password: {{ remoteState "this.mysql-wp-pass-user.result" }}
   ## @param externalDatabase.database External Database database name
   ##
   database: my_database
 
-wordpressPassword: S39BKWjSkh
+wordpressPassword: {{ remoteState "this.wp-pass.result" }}
 
+allowOverrideNone: false
 ingress:
   enabled: true
   ingressClassName: "nginx"

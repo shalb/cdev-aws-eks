@@ -12,6 +12,7 @@ variables:
   domain: cluster.dev
   eks_version: "1.26"
   environment: "demo-env"
+  install_wordpress_demo: true
   eks_managed_node_groups:
     workers:
       capacity_type: SPOT
@@ -34,7 +35,7 @@ variables:
         - "m5a.large"
       labels: {}
       max_size: 3
-      min_size: 1
+      min_size: 2
       name: spot-workers
       subnet_ids: {{ remoteState "cluster.vpc.private_subnets" }}
       taints: []

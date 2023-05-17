@@ -169,7 +169,7 @@ units:
     providers:
       - aws:
           region: {{ .variables.region }}
-    source: "github.com/shalb/terraform-eks-addons"
+    source: "github.com/shalb/terraform-eks-addons?ref=0.0.1"
     depends_on: this.eks
     inputs:
       cluster_name: {{ .variables.cluster_name }}
@@ -189,6 +189,32 @@ units:
       enable_cert_manager_http_issuers: true
       cert_manager_version: "1.11.1"
       route53_zone_id: {{ remoteState "this.route53.zone_id" }}
+  {{- if .variables.install_wordpress_demo }}
+  -
+    name: mysql-wp-pass-root
+    type: tfmodule
+    providers: *provider_aws
+    source: github.com/romanprog/terraform-password?ref=0.0.1
+
+    inputs:
+      length: 12
+      special: false
+  -
+    name: mysql-wp-pass-user
+    type: tfmodule
+    providers: *provider_aws
+    source: github.com/romanprog/terraform-password?ref=0.0.1
+    inputs:
+      length: 12
+      special: false
+  -
+    name: wp-pass
+    type: tfmodule
+    providers: *provider_aws
+    source: github.com/romanprog/terraform-password?ref=0.0.1
+    inputs:
+      length: 12
+      special: false
   -
     name: mysql-wordpress
     type: helm
@@ -217,7 +243,7 @@ units:
       create_namespace: true
     values:
       - file: ./files/wordpress.yaml
-
+  {{- end }}
   - name: outputs
     type: printer
     depends_on: this.eks-addons
@@ -226,3 +252,8 @@ units:
       region: {{ .variables.region }}
       kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
       eks_version: {{ .variables.eks_version | quote }}
+  {{- if .variables.install_wordpress_demo }}
+      wordpress_url: https://wordpress.{{ remoteState "this.route53.domain" }}/admin/
+      wordpress_user: user
+      wordpress_password: {{ remoteState "this.wp-pass.result" }}
+  {{- end }}
