@@ -124,8 +124,7 @@ units:
     providers:
       - aws:
           region: {{ .variables.region }}
-    source: "github.com/shalb/terraform-eks-addons?ref=kubeconfig-generate"
-    # source: "../terraform-eks-addons/"
+    source: "github.com/shalb/terraform-eks-addons?ref=0.0.2"
     depends_on: this.eks
     inputs:
       cluster_name: {{ .variables.cluster_name }}
@@ -154,10 +153,6 @@ units:
         - cd ../../../
         - echo {{ output "this.eks-addons.kubeconfig" }} | base64 -d > $(pwd)/kubeconfig
         - echo "kubeconfig_path=$(pwd)/kubeconfig"
-    destroy:
-      commands:
-        - cd ../../../
-        - rm $(pwd)/kubeconfig
     outputs:
       type: separator
       separator: "="
