@@ -1,0 +1,8 @@
+name: wordpress
+template: "./wordpress/"
+kind: Stack
+backend: aws-backend
+cliVersion: ">= 0.7.14"
+variables:
+  kubeconfig_path: {{ output "cluster.outputs.kubeconfig_path" }}
+  domain: {{ output "cluster.outputs.domain" }}
