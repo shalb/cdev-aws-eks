@@ -1,5 +1,3 @@
-# Init template variables, don't remove this comments:
-# {{ $privateSubnet0 := remoteState "eks.vpc.public_subnets[0]" }}
 name: cluster
 template: "../"
 kind: Stack

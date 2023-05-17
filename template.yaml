@@ -69,6 +69,10 @@ units:
 
   - name: eks
     type: tfmodule
+    pre_hook:
+      on_apply: false
+      on_destroy: true
+      command: echo "waiting 2 minutes for LB deletion" && sleep 120
     providers:
     - aws:
         region: {{ .variables.region }}
@@ -114,62 +118,13 @@ units:
       {{- if .variables.aws_auth_accounts }}
       aws_auth_accounts: {{ .variables.aws_auth_accounts }}
       {{- end }}
-
-  -
-    name: eks-kubeconfig-raw
-    type: printer
-    outputs:
-      config: |
-        apiVersion: v1
-        clusters:
-        - cluster:
-            certificate-authority-data: {{ remoteState "this.eks.cluster_certificate_authority_data" }}
-            server: {{ remoteState "this.eks.cluster_endpoint" }}
-          name: {{ remoteState "this.eks.cluster_name" }}
-        contexts:
-        - context:
-            cluster: {{ remoteState "this.eks.cluster_name" }}
-            user: terraform
-          name: terraform
-        current-context: terraform
-        kind: Config
-        users:
-        - name: terraform
-          user:
-            exec:
-              apiVersion: client.authentication.k8s.io/v1beta1
-              args:
-              - eks
-              - get-token
-              - --cluster-name
-              - {{ remoteState "this.eks.cluster_name" }}
-              command: aws
-              env: null
-  -
-    name: kubeconfig
-    type: shell
-    # force_apply: true
-    apply:
-      commands:
-        - cd ../../../
-        - echo '{{ output "this.eks-kubeconfig-raw.config" }}' > /$(pwd)/kubeconfig
-        - echo '{{ output "this.eks-kubeconfig-raw.config" }}' | base64 -w 0
-        - echo
-        - echo "kubeconfig_path=$(pwd)/kubeconfig"
-    destroy:
-      commands:
-        -  cd ../../../
-        - rm /$(pwd)/kubeconfig
-    outputs:
-      type: separator
-      separator: "="
   -
     name: eks-addons
     type: tfmodule
     providers:
       - aws:
           region: {{ .variables.region }}
-    source: "github.com/shalb/terraform-eks-addons?ref=0.0.1"
+    source: "github.com/shalb/terraform-eks-addons?ref=0.0.2"
     depends_on: this.eks
     inputs:
       cluster_name: {{ .variables.cluster_name }}
@@ -189,71 +144,25 @@ units:
       enable_cert_manager_http_issuers: true
       cert_manager_version: "1.11.1"
       route53_zone_id: {{ remoteState "this.route53.zone_id" }}
-  {{- if .variables.install_wordpress_demo }}
   -
-    name: mysql-wp-pass-root
-    type: tfmodule
-    providers: *provider_aws
-    source: github.com/romanprog/terraform-password?ref=0.0.1
-
-    inputs:
-      length: 12
-      special: false
+    name: kubeconfig
+    type: shell
+    force_apply: true
+    apply:
+      commands:
+        - cd ../../../
+        - echo {{ output "this.eks-addons.kubeconfig" }} | base64 -d > $(pwd)/kubeconfig
+        - echo "kubeconfig_path=$(pwd)/kubeconfig"
+    outputs:
+      type: separator
+      separator: "="
   -
-    name: mysql-wp-pass-user
-    type: tfmodule
-    providers: *provider_aws
-    source: github.com/romanprog/terraform-password?ref=0.0.1
-    inputs:
-      length: 12
-      special: false
-  -
-    name: wp-pass
-    type: tfmodule
-    providers: *provider_aws
-    source: github.com/romanprog/terraform-password?ref=0.0.1
-    inputs:
-      length: 12
-      special: false
-  -
-    name: mysql-wordpress
-    type: helm
-    depends_on: this.eks-addons
-    kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
-    source:
-      repository: "oci://registry-1.docker.io/bitnamicharts"
-      chart: "mysql"
-      version: "9.9.1"
-    additional_options:
-      namespace: "wordpress"
-      create_namespace: true
-    values:
-      - file: ./files/mysql.yaml
-  -
-    name: wordpress
-    type: helm
-    depends_on: this.eks-addons
-    kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
-    source:
-      repository: "oci://registry-1.docker.io/bitnamicharts"
-      chart: "wordpress"
-      version: "16.1.2"
-    additional_options:
-      namespace: "wordpress"
-      create_namespace: true
-    values:
-      - file: ./files/wordpress.yaml
-  {{- end }}
-  - name: outputs
+    name: outputs
     type: printer
     depends_on: this.eks-addons
     outputs:
       cluster_name: {{ .variables.cluster_name }}
       region: {{ .variables.region }}
-      kubeconfig: {{ output "this.kubeconfig.kubeconfig_path" }}
+      kubeconfig_path: {{ output "this.kubeconfig.kubeconfig_path" }}
       eks_version: {{ .variables.eks_version | quote }}
-  {{- if .variables.install_wordpress_demo }}
-      wordpress_url: https://wordpress.{{ remoteState "this.route53.domain" }}/admin/
-      wordpress_user: user
-      wordpress_password: {{ remoteState "this.wp-pass.result" }}
-  {{- end }}
+      domain: {{ remoteState "this.route53.domain" }}

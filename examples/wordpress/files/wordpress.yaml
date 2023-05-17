@@ -25,7 +25,7 @@ ingress:
   enabled: true
   ingressClassName: "nginx"
   pathType: Prefix
-  hostname: wordpress.{{ remoteState "this.route53.domain" }}
+  hostname: wordpress.{{ .variables.domain }}
   path: /
   tls: true
   annotations:
