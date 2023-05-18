@@ -10,7 +10,6 @@ variables:
   domain: cluster.dev
   eks_version: "1.26"
   environment: "demo-env"
-  install_wordpress_demo: true
   eks_managed_node_groups:
     workers:
       capacity_type: SPOT
