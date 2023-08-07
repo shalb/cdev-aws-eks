@@ -6,7 +6,7 @@ cliVersion: ">= 0.7.14"
 variables:
   region: {{ .project.variables.region }}
   organization: {{ .project.variables.organization }}
-  cluster_name: arti-demo
+  cluster_name: demo
   domain: cluster.dev
   eks_version: "1.26"
   environment: "demo-env"

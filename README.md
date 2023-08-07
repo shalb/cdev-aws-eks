@@ -1,6 +1,6 @@
 # AWS-EKS
 
-Cluster.dev uses [stack templates](https://docs.cluster.dev/stack-templates-overview/) to generate users' projects in a desired cloud. AWS-EKS is a stack template that creates and provisions Kubernetes clusters in AWS cloud by means of Amazon Elastic Kubernetes Service (EKS). 
+Cluster.dev uses [stack templates](https://docs.cluster.dev/stack-templates-overview/) to generate users' projects in a desired cloud. AWS-EKS is a stack template that creates and provisions Kubernetes clusters in AWS cloud by means of Amazon Elastic Kubernetes Service (EKS).
 
 In this repository you will find all information and samples necessary to start an EKS cluster on AWS with Cluster.dev. 
 
