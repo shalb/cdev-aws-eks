@@ -2,6 +2,8 @@ import streamlit as st
 import yaml
 import base64
 import requests
+import uuid
+
 
 
 def generate_project_yaml():
@@ -40,7 +42,6 @@ def generate_backend_yaml(project_yaml):
         }
     }
     return yaml.dump(backend_yaml)
-
 
 def generate_stack_eks_yaml(project_yaml):
 
@@ -119,18 +120,37 @@ def generate_stack_eks_yaml(project_yaml):
 
     return yaml.dump(stack_eks_yaml)
 
-def push_to_github(content, filename, repo, branch, token):
-    url = f"https://api.github.com/repos/{repo}/contents/{filename}"
-
-    # Get the file SHA if it exists
+def create_branch(repo, new_branch_name, base_branch, token):
+    url = f"https://api.github.com/repos/{repo}/git/refs/heads/{base_branch}"
     headers = {"Authorization": f"token {token}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code != 200:
+        print(f"Failed to get base branch ref. Response: {r.text}")
+        return False
+
+    ref_sha = r.json().get("object").get("sha")
+    data = {
+        "ref": f"refs/heads/{new_branch_name}",
+        "sha": ref_sha
+    }
+    url = f"https://api.github.com/repos/{repo}/git/refs"
+    r = requests.post(url, json=data, headers=headers)
+    return r.status_code == 201
+
+def push_to_github(content, filename, repo, branch, token):
+    url = f"https://api.github.com/repos/{repo}/contents/{filename}?ref={branch}"
+    headers = {"Authorization": f"token {token}"}
+
+    # Check if the file already exists in the branch
     r = requests.get(url, headers=headers)
     sha = None
     if r.status_code == 200:
         sha = r.json().get("sha")
 
-    # Prepare the data
+    # Encode content
     content_base64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+
+    # Prepare data
     data = {
         "message": f"Add/update {filename}",
         "content": content_base64,
@@ -145,6 +165,20 @@ def push_to_github(content, filename, repo, branch, token):
         print(f"Failed to push {filename}. Status Code: {r.status_code}. Response: {r.text}")
         return False
     return True
+
+def create_pull_request(repo, new_branch_name, base_branch, token):
+    url = f"https://api.github.com/repos/{repo}/pulls"
+    headers = {"Authorization": f"token {token}"}
+    data = {
+        "title": f"Add/update files from {new_branch_name}",
+        "head": new_branch_name,
+        "base": base_branch
+    }
+    r = requests.post(url, json=data, headers=headers)
+    if r.status_code != 201:
+        print(f"Failed to create pull request. Response: {r.text}")
+        return None
+    return r.json().get("html_url")
 
 
 st.title("Cluster.dev AWS-EKS Configuration")
@@ -167,15 +201,26 @@ token = st.text_input("GitHub Token:", type="password")
 
 # Add a button in Streamlit to trigger the push
 if st.button('Push to GitHub') and repo and token:
-    # Replace the branch with your value or make it an input
-    branch = "main"
+    base_branch = "main"
+    new_branch_name = f"cluster.dev-{uuid.uuid4().hex[:8]}"
 
-    # Push the files
-    if (push_to_github(project_yaml_content, "project.yaml", repo, branch, token) and
-        push_to_github(backend_yaml_content, "backend.yaml", repo, branch, token) and
-        push_to_github(stack_eks_yaml_content, "stack_eks.yaml", repo, branch, token)):
-        st.success("Files pushed successfully!")
+    # Create a new branch
+    if not create_branch(repo, new_branch_name, base_branch, token):
+        st.error("Failed to create branch.")
+
+    # Push the files to the new branch
+    if (push_to_github(project_yaml_content, "project.yaml", repo, new_branch_name, token) and
+        push_to_github(backend_yaml_content, "backend.yaml", repo, new_branch_name, token) and
+        push_to_github(stack_eks_yaml_content, "stack_eks.yaml", repo, new_branch_name, token)):
+        # Create a pull request
+        pr_url = create_pull_request(repo, new_branch_name, base_branch, token)
+        if pr_url:
+            st.success(f"Files pushed successfully! [View Pull Request]({pr_url})")
+        else:
+            st.error("Failed to create pull request.")
     else:
         st.error("Failed to push files.")
 else:
     st.warning("Please provide both repository and token.")
+
+
