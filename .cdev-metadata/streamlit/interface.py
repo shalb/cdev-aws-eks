@@ -18,7 +18,7 @@ def generate_project_yaml():
     ]
 
     project_yaml = {
-        "name": "dev",
+        "name":  st.text_input("Name", "my-project"),
         "kind": "Project",
         "backend": "aws-backend",
         "variables": {
@@ -161,7 +161,7 @@ def push_to_github(content, filename, repo, branch, token):
 
     # Push the file
     r = requests.put(url, json=data, headers=headers)
-    if r.status_code != 200:
+    if r.status_code not in [200,201]:
         print(f"Failed to push {filename}. Status Code: {r.status_code}. Response: {r.text}")
         return False
     return True
@@ -179,7 +179,6 @@ def create_pull_request(repo, new_branch_name, base_branch, token):
         print(f"Failed to create pull request. Response: {r.text}")
         return None
     return r.json().get("html_url")
-
 
 st.title("Cluster.dev AWS-EKS Configuration")
 
@@ -204,14 +203,18 @@ if st.button('Push to GitHub') and repo and token:
     base_branch = "main"
     new_branch_name = f"cluster.dev-{uuid.uuid4().hex[:8]}"
 
+    project = yaml.safe_load(project_yaml_content)
+
+    subdirectory = ".cluster.dev/"+project["name"]
+
     # Create a new branch
     if not create_branch(repo, new_branch_name, base_branch, token):
         st.error("Failed to create branch.")
 
     # Push the files to the new branch
-    if (push_to_github(project_yaml_content, "project.yaml", repo, new_branch_name, token) and
-        push_to_github(backend_yaml_content, "backend.yaml", repo, new_branch_name, token) and
-        push_to_github(stack_eks_yaml_content, "stack_eks.yaml", repo, new_branch_name, token)):
+    if (push_to_github(project_yaml_content, f"{subdirectory}/project.yaml", repo, new_branch_name, token) and
+        push_to_github(backend_yaml_content, f"{subdirectory}/backend.yaml", repo, new_branch_name, token) and
+        push_to_github(stack_eks_yaml_content, f"{subdirectory}/stack_eks.yaml", repo, new_branch_name, token)):
         # Create a pull request
         pr_url = create_pull_request(repo, new_branch_name, base_branch, token)
         if pr_url:
