@@ -34,7 +34,7 @@ units:
     type: tfmodule
     providers: *provider_aws
     source: terraform-aws-modules/vpc/aws
-    version: "3.19.0"
+    version: "5.1.1"
     inputs:
       name: {{ .variables.environment }}
       cidr: {{ $createVpcCIDR }}
