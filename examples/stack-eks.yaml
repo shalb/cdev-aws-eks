@@ -1,5 +1,5 @@
 name: cluster
-template: "../"
+template: "https://github.com/shalb/cdev-aws-eks?ref=v0.3.0"
 kind: Stack
 backend: aws-backend
 cliVersion: ">= 0.7.14"
