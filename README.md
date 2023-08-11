@@ -6,6 +6,8 @@ In this repository you will find all information and samples necessary to start 
 
 The resources to be created:
 
+![EKS Cluster With Addons](docs/aws_eks_cluster.png)
+
 * *(optional, if your use cluster.dev domain)* Route53 zone **<cluster-name>.cluster.dev** 
 * *(optional, if vpc_id is not set)* VPC for EKS cluster
 * EKS Kubernetes cluster with addons:

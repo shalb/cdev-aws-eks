@@ -134,16 +134,8 @@ units:
       route53_domain: {{ remoteState "this.route53.domain" }}
       region: {{ .variables.region }}
       email: {{ .variables.email }}
-      enable_nginx: true
-      enable_external_secrets: true
-      enable_cluster_autoscaler: true
-      enable_aws_lb_controller: true
-      enable_external_dns: true
-      enable_cert_manager: true
-      enable_efs: false
-      enable_cert_manager_http_issuers: true
-      cert_manager_version: "1.11.1"
       route53_zone_id: {{ remoteState "this.route53.zone_id" }}
+      {{- .variables.eks_addons | toYaml | nindent 6 }}
   -
     name: kubeconfig
     type: shell
@@ -166,3 +158,4 @@ units:
       kubeconfig_path: {{ output "this.kubeconfig.kubeconfig_path" }}
       eks_version: {{ .variables.eks_version | quote }}
       domain: {{ remoteState "this.route53.domain" }}
+      get_kubeconfig: aws eks update-kubeconfig --name {{ .variables.cluster_name }} --region {{ .variables.region }}
