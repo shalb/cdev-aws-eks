@@ -144,6 +144,7 @@ units:
       enable_cert_manager_http_issuers: true
       cert_manager_version: "1.11.1"
       route53_zone_id: {{ remoteState "this.route53.zone_id" }}
+      {{- if .variables.eks_addons }} {{- .variables.eks_addons | toYaml | nindent 6 }} {{ end }}
   -
     name: kubeconfig
     type: shell
