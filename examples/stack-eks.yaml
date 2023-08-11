@@ -8,7 +8,7 @@ variables:
   organization: {{ .project.variables.organization }}
   cluster_name: demo
   domain: cluster.dev
-  eks_version: "1.26"
+  eks_version: "1.27"
   environment: "demo-env"
   eks_addons:
     enable_argocd: false
