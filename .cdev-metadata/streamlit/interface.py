@@ -134,9 +134,13 @@ on:
     branches:
       - 'cluster.dev-*'
       - main
+    paths:
+      - '.cluster.dev/{project_name}/**'
   pull_request:
     branches:
       - main
+    paths:
+      - '.cluster.dev/{project_name}/**'
 
 jobs:
   plan:
