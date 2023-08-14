@@ -1,5 +1,5 @@
 name: cluster
-template: "https://github.com/shalb/cdev-aws-eks?ref=v0.4.1"
+template: "https://github.com/shalb/cdev-aws-eks?ref=main"
 kind: Stack
 backend: aws-backend
 cliVersion: ">= 0.7.14"
@@ -11,7 +11,7 @@ variables:
   eks_version: "1.27"
   environment: "demo-env"
   eks_addons:
-    enable_argocd: false
+    enable_argocd: true
     enable_nginx: true
     enable_external_secrets: true
     enable_cluster_autoscaler: true

@@ -161,4 +161,5 @@ units:
       get_kubeconfig: aws eks update-kubeconfig --name {{ .variables.cluster_name }} --region {{ .variables.region }}
       {{- if eq .variables.eks_addons.enable_argocd true }}
       argocd_password: kubectl -n argocd get secret argocd-initial-admin-secret  -o jsonpath="{.data.password}" | base64 -d; echo
+      argocd_url: https://argocd.{{ .variables.domain }}
       {{- end }}
