@@ -124,7 +124,7 @@ units:
     providers:
       - aws:
           region: {{ .variables.region }}
-    source: "github.com/shalb/terraform-eks-addons?ref=0.0.2"
+    source: "github.com/shalb/terraform-eks-addons?ref=v0.0.3"
     depends_on: this.eks
     inputs:
       cluster_name: {{ .variables.cluster_name }}
