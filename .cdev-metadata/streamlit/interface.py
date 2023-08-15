@@ -164,6 +164,7 @@ on:
 
 jobs:
   plan:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     container: clusterdev/cluster.dev:v0.7.18
     steps:
@@ -237,6 +238,29 @@ if st.button('Save AWS Secrets'):
 
 workflow_file_content = generate_workflow_file(project_yaml_content)
 
+# Check if 'pr_merged' and 'latest_run_url' are initialized in session state
+if 'pr_merged' not in st.session_state:
+    st.session_state.pr_merged = False
+
+if 'latest_run_url' not in st.session_state:
+    st.session_state.latest_run_url = ''
+
+# Function to be executed on button click
+def merge_and_fetch_latest_run(repo, pr_id, token):
+    success, message = merge_pr(repo, pr_id, token)
+    if success:
+        st.session_state.pr_merged = True
+        st.success(message)
+        # Fetch the latest GitHub Action run triggered by the PR merge
+        latest_run = get_latest_action_run(repo, token, new_branch_name)
+        if latest_run:
+            st.session_state.latest_run_url = latest_run['html_url']
+        else:
+            st.warning("Unable to fetch the latest GitHub Action run.")
+    else:
+        st.error(message)
+
+
 # Add a button in Streamlit to trigger the push
 if st.button('Push to GitHub'):
     if repo and token:
@@ -271,13 +295,13 @@ if st.button('Push to GitHub'):
                     st.success(f"Files pushed successfully! [View Pull Request]({pr_url})")
 
                     # Create a progress bar in Streamlit
-                    progress_bar = st.progress(0)
+                    progress_bar = st.progress(0,text="Executing Workflow")
 
                     # Define a callback to update the progress bar
                     def update_progress(progress):
                         progress_bar.progress(progress)
 
-                    job_statuses = get_workflow_status(repo, token, new_branch_name, callback=update_progress)
+                    job_statuses = get_workflow_status(repo, token, new_branch_name, timeout=120, callback=update_progress)
                     # Check the workflow status with the callback
                     if job_statuses:
                         all_successful = all(job['status'] in ['success', 'skipped'] for job in job_statuses)
@@ -290,20 +314,16 @@ if st.button('Push to GitHub'):
                         for job in job_statuses:
                             if job['name'] == 'plan':
                                 st.success(f"All checks have passed for [Plan job]({job['url']})! Now you can review the plan and merge the PR to bootstrap the cluster.")
-                        if st.button("Merge PR"):
-                            success, message = merge_pr(repo, pr_url.split('/')[-1], token)
-                            if success:
-                                st.success(message)
-                                # Fetch the latest GitHub Action run triggered by the PR merge
-                                latest_run = get_latest_action_run(repo, token, new_branch_name)
-                                if latest_run:
-                                    st.write(f"Action triggered: [View Action]({latest_run['html_url']})")
-                                    # Here, you can add code to track the progress of this action
-                                    # For example, you can periodically poll the status of this action and update a progress bar in Streamlit
-                                else:
-                                    st.warning("Unable to fetch the latest GitHub Action run.")
-                            else:
-                                st.error(message)
+                        # If PR is not yet merged, show the button
+                        if not st.session_state.pr_merged:
+                            merge_button = st.button(
+                                "Merge PR",
+                                on_click=merge_and_fetch_latest_run,
+                                args=(repo, pr_url.split('/')[-1], token)
+                            )
+                        # If PR is merged, display the action triggered message
+                        if st.session_state.pr_merged and st.session_state.latest_run_url:
+                            st.success(f"Action triggered: [View Action]({st.session_state.latest_run_url})")
                     else:
                         for job in job_statuses:
                             if job['status'] == 'failure':
