@@ -1,10 +1,7 @@
 import streamlit as st
 import yaml
-import base64
-import requests
 import uuid
-from nacl import public
-
+from github_utils import create_branch, push_multiple_files_to_github, create_pull_request, create_or_update_github_secret, get_workflow_status, merge_pr, get_latest_action_run
 
 def generate_project_yaml():
 
@@ -202,119 +199,6 @@ jobs:
 
     return workflow_yaml
 
-def create_branch(repo, new_branch_name, base_branch, token):
-    url = f"https://api.github.com/repos/{repo}/git/refs/heads/{base_branch}"
-    headers = {"Authorization": f"token {token}"}
-    r = requests.get(url, headers=headers)
-    if r.status_code != 200:
-        print(f"Failed to get base branch ref. Response: {r.text}")
-        return False, r.json()
-
-    ref_sha = r.json().get("object").get("sha")
-    data = {
-        "ref": f"refs/heads/{new_branch_name}",
-        "sha": ref_sha
-    }
-    url = f"https://api.github.com/repos/{repo}/git/refs"
-    r = requests.post(url, json=data, headers=headers)
-    success = r.status_code in [200, 201]
-    return success, r.json() if not success else None
-
-def push_multiple_files_to_github(files, repo, branch, token):
-    base_url = f"https://api.github.com/repos/{repo}"
-    headers = {"Authorization": f"token {token}"}
-
-    # Step 1: Get the latest commit SHA of the branch
-    r = requests.get(f"{base_url}/git/ref/heads/{branch}", headers=headers)
-    if r.status_code != 200:
-        return False, r.json()
-    latest_commit_sha = r.json()["object"]["sha"]
-
-    # Step 2: Get the tree SHA of the latest commit
-    r = requests.get(f"{base_url}/git/commits/{latest_commit_sha}", headers=headers)
-    if r.status_code != 200:
-        return False, r.json()
-    base_tree_sha = r.json()["tree"]["sha"]
-
-    # Step 3: Create a new tree object
-    tree_data = []
-    for filename, content in files.items():
-        tree_data.append({"path": filename, "mode": "100644", "type": "blob", "content": content})
-
-    tree_payload = {
-        "base_tree": base_tree_sha,
-        "tree": tree_data
-    }
-    r = requests.post(f"{base_url}/git/trees", json=tree_payload, headers=headers)
-    if r.status_code != 201:
-        return False, r.json()
-    new_tree_sha = r.json()["sha"]
-
-    # Step 4: Create a new commit object
-    commit_payload = {
-        "message": "Add/update multiple files",
-        "tree": new_tree_sha,
-        "parents": [latest_commit_sha]
-    }
-    r = requests.post(f"{base_url}/git/commits", json=commit_payload, headers=headers)
-    if r.status_code != 201:
-        return False, r.json()
-    new_commit_sha = r.json()["sha"]
-
-    # Step 5: Update the reference
-    ref_payload = {
-        "sha": new_commit_sha
-    }
-    r = requests.patch(f"{base_url}/git/refs/heads/{branch}", json=ref_payload, headers=headers)
-    success = r.status_code in [200, 201]
-    # Return both the success status and the response content (if not successful)
-    return success, r.json() if not success else None
-
-def create_pull_request(repo, new_branch_name, base_branch, token):
-    url = f"https://api.github.com/repos/{repo}/pulls"
-    headers = {"Authorization": f"token {token}"}
-    data = {
-        "title": f"Add/update files from {new_branch_name}",
-        "head": new_branch_name,
-        "base": base_branch
-    }
-    r = requests.post(url, json=data, headers=headers)
-    if r.status_code != 201:
-        print(f"Failed to create pull request. Response: {r.text}")
-        return None
-    return r.json().get("html_url")
-
-def create_or_update_github_secret(repo_name, secret_name, secret_value, token):
-    # Get the public key
-    url = f"https://api.github.com/repos/{repo_name}/actions/secrets/public-key"
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        error_message = f"Failed to get public key. GitHub says: {response.json().get('message', 'Unknown error')}"
-        print(error_message)
-        return False, error_message
-
-    public_key = response.json()['key']
-    key_id = response.json()['key_id']
-
-    # Encrypt the secret using the public key
-    public_key_bytes = base64.b64decode(public_key)
-    sealed_box = public.SealedBox(public.PublicKey(public_key_bytes))
-    encrypted_value = base64.b64encode(sealed_box.encrypt(secret_value.encode())).decode()
-
-    # Create or update the secret
-    url = f"https://api.github.com/repos/{repo_name}/actions/secrets/{secret_name}"
-    data = {"encrypted_value": encrypted_value, "key_id": key_id}
-    response = requests.put(url, json=data, headers=headers)
-
-    if response.status_code not in [201, 204]:
-        error_message = f"Failed to create/update secret. GitHub says: {response.json().get('message', 'Unknown error')}"
-        print(error_message)
-        return False, error_message
-
-    print(f"Secret {secret_name} successfully created/updated.")
-    return True, None
-
 st.set_page_config(page_title="Cluster.dev AWS-EKS Configuration")
 st.title("Cluster.dev AWS-EKS Configuration")
 
@@ -385,6 +269,45 @@ if st.button('Push to GitHub'):
                 pr_url = create_pull_request(repo, new_branch_name, base_branch, token)
                 if pr_url:
                     st.success(f"Files pushed successfully! [View Pull Request]({pr_url})")
+
+                    # Create a progress bar in Streamlit
+                    progress_bar = st.progress(0)
+
+                    # Define a callback to update the progress bar
+                    def update_progress(progress):
+                        progress_bar.progress(progress)
+
+                    job_statuses = get_workflow_status(repo, token, new_branch_name, callback=update_progress)
+                    # Check the workflow status with the callback
+                    if job_statuses:
+                        all_successful = all(job['status'] in ['success', 'skipped'] for job in job_statuses)
+                    else:
+                        st.warning("No job statuses returned.")
+                    # Clear the progress bar once done
+                    progress_bar.empty()
+                    # Display the workflow status
+                    if all_successful:
+                        for job in job_statuses:
+                            if job['name'] == 'plan':
+                                st.success(f"All checks have passed for [Plan job]({job['url']})! Now you can review the plan and merge the PR to bootstrap the cluster.")
+                        if st.button("Merge PR"):
+                            success, message = merge_pr(repo, pr_url.split('/')[-1], token)
+                            if success:
+                                st.success(message)
+                                # Fetch the latest GitHub Action run triggered by the PR merge
+                                latest_run = get_latest_action_run(repo, token, new_branch_name)
+                                if latest_run:
+                                    st.write(f"Action triggered: [View Action]({latest_run['html_url']})")
+                                    # Here, you can add code to track the progress of this action
+                                    # For example, you can periodically poll the status of this action and update a progress bar in Streamlit
+                                else:
+                                    st.warning("Unable to fetch the latest GitHub Action run.")
+                            else:
+                                st.error(message)
+                    else:
+                        for job in job_statuses:
+                            if job['status'] == 'failure':
+                                st.error(f"Check failed for [job {job['name']}]({job['url']}).")
             else:
                 if push_error_response and "message" in push_error_response:
                     st.error(f"Failed to push files. GitHub says: {push_error_response['message']}")
