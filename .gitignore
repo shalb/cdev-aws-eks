@@ -31,3 +31,4 @@ override.tf.json
 
 **/.cluster.dev
 **/kubeconfig
+**__pycache__
