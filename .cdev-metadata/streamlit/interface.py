@@ -193,7 +193,7 @@ jobs:
     - name: Run ClusterDev Apply
       run: |
         cd .cluster.dev/{project_name}
-        cdev plan --force
+        cdev apply --force
       env:
         AWS_ACCESS_KEY_ID: ${{{{ secrets.AWS_ACCESS_KEY_ID }}}}
         AWS_SECRET_ACCESS_KEY: ${{{{ secrets.AWS_SECRET_ACCESS_KEY }}}}
@@ -269,11 +269,11 @@ def merge_and_fetch_latest_run(repo, pr_id, token):
 
 if st.session_state.pr_merged and st.session_state.latest_run_url:
     st.success(f"EKS bootstaping triggered: [View Action]({st.session_state.latest_run_url})")
-    logs = fetch_run_logs(repo, st.session_state.latest_run_id, token)
-    if logs:
-        st.text_area("Logs:", value=logs, height=400)
-    else:
-        st.error("Failed to fetch logs.")
+    #logs = fetch_run_logs(repo, st.session_state.latest_run_id, token)
+    #if logs:
+    #    st.text_area("Logs:", value=logs, height=400)
+    #else:
+    #    st.error("Failed to fetch logs.")
 else:
     # Add a button in Streamlit to trigger the push
     if st.button('Push Configuration to GitHub'):
