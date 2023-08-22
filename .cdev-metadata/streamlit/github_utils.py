@@ -2,6 +2,8 @@ from nacl import public
 import base64
 import requests
 import time
+import io
+import zipfile
 
 def create_branch(repo, new_branch_name, base_branch, token):
     url = f"https://api.github.com/repos/{repo}/git/refs/heads/{base_branch}"
@@ -53,7 +55,7 @@ def push_multiple_files_to_github(files, repo, branch, token):
 
     # Step 4: Create a new commit object
     commit_payload = {
-        "message": "Add/update multiple files",
+        "message": "Cluster.dev push configuration",
         "tree": new_tree_sha,
         "parents": [latest_commit_sha]
     }
@@ -168,26 +170,57 @@ def merge_pr(repo, pr_number, token):
     response = requests.put(url, headers=headers)
 
     if response.status_code == 200:
-        return True, "PR merged successfully!"
+        # Fetch the merged commit SHA
+        merge_commit_sha = response.json().get('sha')
+        return True, "PR merged successfully!", merge_commit_sha
     else:
-        return False, f"Failed to merge PR. GitHub says: {response.json()['message']}"
+        return False, f"Failed to merge PR. GitHub says: {response.json()['message']}", None
 
-def get_latest_action_run(repo, token, branch_name):
+def get_run_id_for_commit(repo, token, commit_sha, workflow_name, timeout=60):
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json"
     }
-    url = f"https://api.github.com/repos/{repo}/actions/runs"
-    
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        return None
+    url = f"https://api.github.com/repos/{repo}/commits/{commit_sha}/check-runs"
 
-    runs = response.json().get('workflow_runs', [])
-    for run in runs:
-        if run['head_branch'] == branch_name:
-            return run
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print(f"Unsuccessful request. Status code: {response.status_code}. Response: {response.json()}")
+            time.sleep(5)  # Wait for 5 seconds before polling again
+            continue
+
+        check_runs = response.json().get('check_runs', [])
+        if check_runs:
+            for run in check_runs:
+                if "apply" in run['name'].lower():
+                    print(f"Successful request. Check runs: {check_runs}")
+                    return run
+            # If no matching run found, sleep for a short duration before polling again
+            time.sleep(5)
+        else:
+            print("Successful request but no check runs found yet.")
+            time.sleep(5)
 
     return None
 
+def fetch_run_logs(repo, run_id, token):
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    logs_url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/logs"
 
+    response = requests.get(logs_url, headers=headers, stream=True)
+
+    if response.status_code == 200:
+        content_type = response.headers.get('content-type')
+        if 'zip' in content_type:
+            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+                with z.open('apply/4_Run_ClusterDev_Apply.txt') as f:
+                    return f.read().decode('utf-8')
+        else:
+            return response.text
+    else:
+        return None
