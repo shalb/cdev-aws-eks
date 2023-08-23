@@ -38,3 +38,6 @@ The resources to be created:
 4. Run `cdev plan`
 5. Run `cdev apply`
 
+## UI Demo
+
+In case you'd like to bootstrap own cluster with UI, you can try [UI Demo](https://aws-eks.dev.cluster).
