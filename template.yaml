@@ -110,6 +110,14 @@ units:
           most_recent: true
       vpc_id: {{ remoteState "this.vpc.vpc_id" }}
       subnet_ids: {{ remoteState "this.vpc.private_subnets" }}
+      node_security_group_additional_rules:
+        ingress_istio_tcp:
+          description: "Access Istio inside nodes."
+          protocol: "tcp"
+          from_port: 15017
+          to_port: 15017
+          type: "ingress"
+          source_cluster_security_group: true
       {{- if .variables.eks_managed_node_groups }}
       eks_managed_node_groups: {{ insertYAML .variables.eks_managed_node_groups }} # https://github.com/terraform-aws-modules/terraform-aws-eks#eks-managed-node-groups
       {{- end }}
