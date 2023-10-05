@@ -127,7 +127,6 @@ def generate_stack_eks_yaml(project_yaml):
         ("Metrics Server", True),
         ("Reloader", True)
     ]
-    eks_addons_options = {f"enable_{name.lower().replace(' ', '_')}": state for name, state in eks_addons_list}
 
     selected_addons = st.multiselect(
         "Select EKS Addons",
